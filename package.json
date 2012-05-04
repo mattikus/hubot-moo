@@ -1,0 +1,20 @@
+{
+    "name": "hubot-moo",
+    "description": "a hubot adapter for MOO and MOO-like servers",
+    "version": "0.0.1",
+    "author": "Matt Kemp <matt@mattikus.com>",
+    "licenses": [{
+        "type": "MIT"
+    }],
+    "repository": {
+        "type": "git",
+        "url": "http://github.com/mattikus/hubot-moo.git"
+    },
+    "bugs": {
+      "url": "http://github.com/mattikus/hubot-moo/issues"
+    },
+    "devDependencies": {
+        "coffee-script": ">=1.3.1"
+    },
+    "main": "./src/moo"
+}
