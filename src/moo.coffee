@@ -44,7 +44,7 @@ class Moo extends Adapter
                 @bot.speak "."
             else
                 @robot.logger.debug "sending message"
-                if type is 'help' or 'whisper'
+                if user.method is 'help' or 'whisper'
                     @bot.speak "mu #{user.name} #{string}"
                 else
                     @bot.speak "#{user.name} #{string}"
