@@ -17,25 +17,24 @@ class Moo extends Adapter
         types = ['say', 'whisper', 'direct', 'help']
 
         types.forEach (type) =>
-            if type is 'say'
-                @bot.on type, (name, msg) =>
-                    @robot.logger.debug "#{name} said: #{msg}"
-                    user = @userForId name, method: type
+            @bot.on type, (name, msg) =>
+                @robot.logger.debug "#{name}:#{type}: #{msg}"
+                user = @userForId name
+                user.replyMethod = type
+                if type is 'say'
                     @receive new Robot.TextMessage user, msg
-            else
-                @bot.on type, (name, msg) =>
-                    @robot.logger.debug "#{name} #{type}ed: #{msg}"
-                    user = @userForId name, method: type
+                else
                     @receive new Robot.TextMessage user, "#{@robot.name} #{msg}"
 
         @bot.listen()
         @emit "connected"
 
     send: (user, strings...) ->
+        @robot.logger.debug "reply method: #{user.replyMethod}"
         for string in strings
             if '\n' in string
                 @robot.logger.debug "sending paste"
-                if method is 'whisper' or 'help'
+                if user.replyMethod in ['whisper', 'help']
                     @bot.speak "@pasteto2 #{user.name}"
                 else
                     @bot.speak "@paste"
@@ -44,10 +43,10 @@ class Moo extends Adapter
                 @bot.speak "."
             else
                 @robot.logger.debug "sending message"
-                if user.method is 'help' or 'whisper'
+                if user.replyMethod is 'whisper'
                     @bot.speak "mu #{user.name} #{string}"
                 else
-                    @bot.speak "#{user.name} #{string}"
+                    @bot.speak "#{user.name}, #{string}"
 
     reply: (user, strings...) ->
         @robot.logger.debug "replying to #{user.name}"
@@ -91,15 +90,13 @@ class MooClient extends EventEmitter
             lines = buffer.split "\r\n"
             buffer = lines.pop()
             lines.forEach (line) =>
-                @robot.logger.debug line
                 for type, matcher of @matchers
                     if matcher.test line
                         [name, msg] = matcher.exec(line)[1..2]
                         @robot.logger.debug "emitting #{type}"
-                        if type is 'direct' and 'help' in msg
-                            @emit 'help', name, msg
-                        else
-                            @emit type, name, msg
+                        @robot.logger.debug "msg = #{msg}"
+                        type = 'help' if type is 'direct' and /^help.*/.test msg
+                        @emit type, name, msg
 
         @client.on "close", ->
             console.log "Connection closed by remote host, exiting."
