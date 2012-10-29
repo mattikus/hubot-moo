@@ -1,7 +1,7 @@
 {
     "name": "hubot-moo",
     "description": "a hubot adapter for MOO and MOO-like servers",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "author": "Matt Kemp <matt@mattikus.com>",
     "licenses": [{
         "type": "MIT"
