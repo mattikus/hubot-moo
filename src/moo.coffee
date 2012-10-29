@@ -14,7 +14,7 @@ class Moo extends Adapter
         @bot = new MooClient options, @robot
 
         # Events to receive
-        types = ['say', 'whisper', 'direct', 'help']
+        types = ['say', 'whisper', 'direct', 'page', 'help']
 
         types.forEach (type) =>
             @bot.on type, (name, msg) =>
@@ -34,8 +34,8 @@ class Moo extends Adapter
         for string in strings
             if '\n' in string
                 @robot.logger.debug "sending paste"
-                if user.replyMethod in ['whisper', 'help']
-                    @bot.speak "@pasteto2 #{user.name}"
+                if user.replyMethod in ['page', 'whisper', 'help']
+                    @bot.speak "@pasteto2 ~#{user.name}"
                 else
                     @bot.speak "@paste"
                 for line in string.split '\n'
@@ -45,6 +45,8 @@ class Moo extends Adapter
                 @robot.logger.debug "sending message"
                 if user.replyMethod is 'whisper'
                     @bot.speak "mu #{user.name} #{string}"
+                else if user.replyMethod is 'page'
+                    @bot.speak "page #{user.name} #{string}"
                 else
                     @bot.speak "#{user.name}, #{string}"
 
@@ -73,8 +75,7 @@ class MooClient extends EventEmitter
             say: /^(.+) says, "(.+)"/
             direct: /^(.+) \[to you\]: (.+)/
             whisper: /^(.+) whispers to you, "(.+)"/
-            #TODO: add page
-
+            page: /^(.+) pages, "(.+)"/
 
     speak: (msg) ->
         @client.write "#{msg}\r\n"
