@@ -1,6 +1,7 @@
 EventEmitter = require('events').EventEmitter
-Adapter      = require('hubot').adapter()
-Robot        = require('hubot').robot()
+Adapter      = require('hubot').Adapter
+Robot        = require('hubot').Robot
+TextMessage  = require('hubot').TextMessage
 net          = require 'net'
 
 class Moo extends Adapter
@@ -14,17 +15,18 @@ class Moo extends Adapter
         @bot = new MooClient options, @robot
 
         # Events to receive
-        types = ['say', 'whisper', 'direct', 'page', 'help']
+        types = ['say', 'whisper', 'direct', 'page', 'help', 'action', 'indirect']
 
         types.forEach (type) =>
             @bot.on type, (name, msg) =>
                 @robot.logger.debug "#{name}:#{type}: #{msg}"
                 user = @userForId name
-                user.replyMethod = type
-                if type is 'say'
-                    @receive new Robot.TextMessage user, msg
+                if type in ['say', 'indirect']
+                    user.replyMethod = 'say'
+                    @receive new TextMessage user, msg
                 else
-                    @receive new Robot.TextMessage user, "#{@robot.name} #{msg}"
+                    user.replyMethod = type
+                    @receive new TextMessage user, "#{@robot.name} #{msg}"
 
         @bot.listen()
         @emit "connected"
@@ -32,7 +34,16 @@ class Moo extends Adapter
     send: (user, strings...) ->
         @robot.logger.debug "reply method: #{user.replyMethod}"
         for string in strings
-            if '\n' in string
+            if string.search(/^EMOTE:/) == 0
+                string = string.substr 6
+                if user.replyMethod is 'whisper'
+                    @bot.speak "+ #{user.name} " + string
+                else
+                    @bot.speak "emote " + string
+            else if string.search(/^ECHO:/) == 0
+                string = string.substr 5
+                @bot.speak string
+            else if '\n' in string
                 @robot.logger.debug "sending paste"
                 if user.replyMethod in ['page', 'whisper', 'help']
                     @bot.speak "@pasteto2 ~#{user.name}"
@@ -43,7 +54,9 @@ class Moo extends Adapter
                 @bot.speak "."
             else
                 @robot.logger.debug "sending message"
-                if user.replyMethod is 'whisper'
+                if user.replyMethod is 'action'
+                    @bot.speak "#{string}"
+                else if user.replyMethod is 'whisper'
                     @bot.speak "mu #{user.name} #{string}"
                 else if user.replyMethod is 'page'
                     @bot.speak "page #{user.name} #{string}"
@@ -72,13 +85,18 @@ class MooClient extends EventEmitter
 
         # regular expressions to match input against
         @matchers =
-            say: /^(.+) says, "(.+)"/
-            direct: /^(.+) \[to you\]: (.+)/
-            whisper: /^(.+) whispers to you, "(.+)"/
-            page: /^(.+) pages, "(.+)"/
+            say: /^(\S+) says, "(.+)"/
+            direct: /^(\S+) \[to you\]: (.+)/
+            indirect: /^(\S+) \[to .*\]: (.+)/
+            action: /^(mkemp) (?:whispers to you|pages), "DO (.+)"/
+            whisper: /^(\S+) whispers to you, "(.+)"/
+            page: /^(\S+) pages, "(.+)"/
+            hi5: /^(\S+) hi5s you./ 
+            poke: /^(\S+) pokes you./ 
 
     speak: (msg) ->
         @client.write "#{msg}\r\n"
+        @robot.logger.debug "msg = #{msg}"
 
     listen: ->
         @client.connect @port, @host, =>
@@ -94,10 +112,20 @@ class MooClient extends EventEmitter
                 for type, matcher of @matchers
                     if matcher.test line
                         [name, msg] = matcher.exec(line)[1..2]
-                        @robot.logger.debug "emitting #{type}"
-                        @robot.logger.debug "msg = #{msg}"
-                        type = 'help' if type is 'direct' and /^help.*/.test msg
-                        @emit type, name, msg
+                        if name is 'You'
+                            break
+                        #@robot.logger.debug "emitting #{type}"
+                        #@robot.logger.debug "msg = #{msg}"
+                        if type is 'action'
+                            @speak msg
+                        else if type is 'hi5'
+                            @speak "hi5 #{name}"
+                        else if type is 'poke'
+                            @speak "emote coos like the Pillsbury Doughboy."
+                        else
+                            type = 'help' if type is 'direct' and /^h(ea)lp.*/.test msg
+                            @emit type, name, msg
+                        break
 
         @client.on "close", ->
             console.log "Connection closed by remote host, exiting."
